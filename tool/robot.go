@@ -1,6 +1,6 @@
 package tool
 
-type SendRobotWarningFunc func(msg string, err error) error
+type SendRobotWarningFunc func(msg string, err error)
 
 var sendRobotWarning SendRobotWarningFunc
 

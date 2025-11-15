@@ -2,6 +2,8 @@ package tool
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"testing"
 )
 
@@ -13,10 +15,10 @@ func TestSignatureUtils(t *testing.T) {
 	// 示例数据
 	encryptStr := `{"charset":"UTF-8","dgtlEnvlp":"23b88946e7af335f0a517e63a9c7dd95ef9f2ec4371ef0837206bf4fde29af2e4eaef92625bd5ed487bda578462cb4cdeee1322012146744c4f03a8632f0b8cb8162bd860212faa3f101e74c90b93359e101dbfd545624164dfb9b3e09518f62d93f154a65310806a452829f0919c5b28e7e5e5be5c15bf690810659c6c05416","memberId":"102005245","ncrptnSN":"00b9f3e90c370a7a0f","signSN":"00823078efb7e1bbdc","terminalId":"200005972","timestamp":"2025-10-27 11:26:37","verifyType":"11","version":"1.0"}{"accInfo":{"bankName":"中国工商银行","cardNo":"c9b286b6a05d88fc36f97f41469ba93c","certificateNo":"6e54db8c5da71265b4e163272dedb384905e599df4a3aef1bc1647a5da3dc4ca","certificateType":"LICENSE","corporateCertId":"881105294a68a713d649a695fd2fe7a6db6543bad256d19f28026606436cfe01","corporateCertType":"ID","corporateName":"杨雪宇","customerName":"建国强文科技股份有限公司","depositBankCity":"南京市","depositBankName":"支行营业部","depositBankProvince":"江苏省","email":"greatwalltesta@baofu.com","industryId":"9999","loginNo":"LN939338151248693","needUploadFile":false,"registerCapital":"50000","selfEmployed":false,"transSerialNo":"TSN8805DDDA8F81EA81F062"},"accType":2,"businessType":"BCT3","noticeUrl":"","version":"1.0.0"}`
 
-	// 检查证书文件是否存在
-	pfxPath := "/Users/wwb/项目文档/宝财通/宝付密钥/测试密钥/BAOFU20240612_pri.pfx"     //商户私钥
-	pubCerPath := "/Users/wwb/项目文档/宝财通/宝付密钥/测试密钥/BAOFUP20240612_pub.cer" //宝付公钥
-	priKeyPass := "123456"                                               //私钥密码
+	wd, _ := os.Getwd()
+	pfxPath := path.Join(wd, "../cert", "BAOFU20240612_pri.pfx")     //商户私钥
+	pubCerPath := path.Join(wd, "../cert", "BAOFUP20240612_pub.cer") //宝付公钥
+	priKeyPass := "123456"                                           //私钥密码
 
 	// 1. 签名示例
 	fmt.Println("\n1. 签名过程:")
