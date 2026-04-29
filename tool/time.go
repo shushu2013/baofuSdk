@@ -10,3 +10,8 @@ func GetTimeMilliseconds(time time.Time) int64 {
 	}
 	return time.UnixMilli()
 }
+
+// GetReqTime 获取请求时间，格式：yyyyMMddHHmmss
+func GetReqTime() string {
+	return time.Now().Format("20060102150405")
+}

@@ -1,0 +1,68 @@
+package bct3
+
+import (
+	"time"
+
+	"github.com/shushu2013/baofuSdk/tool"
+
+	"github.com/pkg/errors"
+)
+
+// 账户加值（分账加值）接口
+// https://docs.baofu.com/docs/bct3/bct3-5001-001-01
+func AccountRechargeRequest(config *BCT3Config, req *AccRechargeReq) (*AccRechargeResp, error) {
+	// 服务编号
+	serviceTp := SERVICE_ACCOUNT_RECHARGE
+
+	// 固定配置
+	req.Version = "1.0.0"
+
+	// 固定使用当前时间
+	req.ReqTime = tool.GetReqTime()
+
+	// 自动计算加值总金额
+	req.CalcDealAmount()
+
+	// 时间戳
+	timestamp := tool.FormatDateTime(time.Now(), true)
+
+	reqHeader := &RequestHeader{
+		MemberID:   config.MemberId,
+		TerminalID: config.TerminalId,
+		Timestamp:  timestamp,
+		VerifyType: config.VerifyType,
+		Charset:    config.Charset,
+		Version:    config.Version,
+		SignSN:     config.SignSN,
+		NcrptnSN:   config.NcrptnSN,
+	}
+
+	reqParams := generateBCT3RequestParams(config, reqHeader, req)
+	response := &ResponseData{}
+
+	// 发送请求
+	err := sendRequest(
+		config.GetBaseURL(serviceTp),
+		reqParams,
+		response,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = verifyBCT3ResponseData(config, response); err != nil {
+		return nil, err
+	}
+
+	resp := &AccRechargeResp{}
+	if err = tool.ParseJSON(response.Body, resp); err != nil {
+		return nil, err
+	}
+
+	// 判断加值状态
+	if resp.State == RECHARGE_STATE_FAILURE {
+		return nil, errors.Errorf("账户加值失败:%s", resp.TransRemark)
+	}
+
+	return resp, nil
+}

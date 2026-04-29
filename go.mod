@@ -6,3 +6,5 @@ require (
 	github.com/pkg/errors v0.9.1
 	golang.org/x/crypto v0.41.0
 )
+
+require github.com/shopspring/decimal v1.4.0 // indirect

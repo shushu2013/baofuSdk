@@ -1,5 +1,9 @@
 package bct3
 
+import (
+	"github.com/shopspring/decimal"
+)
+
 // RequestHeader 请求头
 // 对应宝付API文档中的header部分
 // https://docs.baofu.com/docs/bct3/bct3Entrance
@@ -466,6 +470,455 @@ type AccBindRelationInfo struct {
 	ContractNo string `json:"contractNo"`
 	// 上级平台编号
 	UpperContractNo string `json:"upperContractNo"`
-	// 状态 OPEN(“开启”),PENDING_OPEN(“待开启”),CLOSED(“关闭”);
+	// 状态 OPEN("开启"),PENDING_OPEN("待开启"),CLOSED("关闭");
 	State string `json:"state"`
+}
+
+// 转账请求参数
+type AccTransferReq struct {
+	// 版本号 1.0.0
+	Version string `json:"version"`
+	// 付款方(二级子商户号)
+	PayerNo string `json:"payerNo"`
+	// 收款方(二级子商户号)
+	PayeeNo string `json:"payeeNo"`
+	// 商户流水号
+	TransSerialNo string `json:"transSerialNo"`
+	// 账户类型 BALANCE-余额户 TRANSIT-在途户
+	AccountType string `json:"accountType"`
+	// 转账金额,单位：元
+	DealAmount string `json:"dealAmount"`
+	// 转账附言，目前不支持
+	Remark string `json:"remark,omitempty"`
+}
+
+// 转账响应数据
+type AccTransferResp struct {
+	AccBaseResp
+	// 请求流水号
+	TransSerialNo string `json:"transSerialNo"`
+	// 业务流水号
+	BusinessNo string `json:"businessNo,omitempty"`
+	// 账户类型 BALANCE-余额户 TRANSIT-在途户
+	AccountType string `json:"accountType"`
+	// 付款方(二级子商户号)
+	PayerNo string `json:"payerNo"`
+	// 收款方(二级子商户号)
+	PayeeNo string `json:"payeeNo"`
+	// 转账金额,单位：元
+	DealAmount float64 `json:"dealAmount"`
+	// 手续费金额,单位：元
+	FeeAmount float64 `json:"feeAmount,omitempty"`
+	// 订单状态 0失败 1成功 2处理中
+	State int `json:"state"`
+	// 失败原因
+	TransRemark string `json:"transRemark,omitempty"`
+}
+
+// IsSuccess 判断转账是否成功
+func (r *AccTransferResp) IsSuccess() bool {
+	return r.State == TRANSFER_STATE_SUCCESS
+}
+
+// IsProcessing 判断转账是否处理中
+func (r *AccTransferResp) IsProcessing() bool {
+	return r.State == TRANSFER_STATE_PROCESSING
+}
+
+// 转账结果查询（账户间）请求参数
+type AccTransferQueryReq struct {
+	// 版本号 1.0.0
+	Version string `json:"version"`
+	// 原转账（账户间）接口中transSerialNo商户流水号
+	TransSerialNo string `json:"transSerialNo"`
+	// 交易时间 yyyy-MM-dd，原转账交易发起日期
+	TradeTime string `json:"tradeTime"`
+}
+
+// 转账结果查询（账户间）响应数据
+type AccTransferQueryResp struct {
+	AccBaseResp
+	// 请求流水号
+	TransSerialNo string `json:"transSerialNo"`
+	// 业务流水号
+	BusinessNo string `json:"businessNo,omitempty"`
+	// 订单状态 0失败 1成功 2处理中
+	State int `json:"state"`
+	// 账户类型 BALANCE-余额户
+	AccountType string `json:"accountType"`
+	// 付款方(二级子商户号)
+	PayerNo string `json:"payerNo"`
+	// 收款方(二级子商户号)
+	PayeeNo string `json:"payeeNo"`
+	// 转账金额,单位：元
+	DealAmount float64 `json:"dealAmount"`
+	// 手续费金额,单位：元
+	FeeAmount float64 `json:"feeAmount,omitempty"`
+	// 失败原因
+	TransRemark string `json:"transRemark,omitempty"`
+	// 成功时间，格式：yyyy-MM-dd HH:mm:ss
+	SuccessTime string `json:"successTime,omitempty"`
+}
+
+// IsSuccess 判断转账查询是否成功
+func (r *AccTransferQueryResp) IsSuccess() bool {
+	return r.State == TRANSFER_QUERY_STATE_SUCCESS
+}
+
+// IsProcessing 判断转账查询是否处理中
+func (r *AccTransferQueryResp) IsProcessing() bool {
+	return r.State == TRANSFER_QUERY_STATE_PROCESSING
+}
+
+// 账户加值明细信息
+type AccRechargeInfo struct {
+	// 二级客户号
+	ContractNo string `json:"contractNo"`
+	// 加值金额,单位：元
+	TransAmount string `json:"transAmount"`
+	// 附言
+	Remark string `json:"remark,omitempty"`
+}
+
+// 账户加值请求参数
+type AccRechargeReq struct {
+	// 版本号 1.0.0
+	Version string `json:"version"`
+	// 请求流水号
+	TransSerialNo string `json:"transSerialNo"`
+	// 请求日期 时间 yyyyMMddHHmmss
+	ReqTime string `json:"reqTime,omitempty"`
+	// 平台商户号
+	PlatformNo string `json:"platformNo"`
+	// 商户订单号需要唯一
+	TransOrderNo string `json:"transOrderNo"`
+	// 商户原支付交易订单的订单号
+	OrderNo string `json:"orderNo"`
+	// 手续费承担方
+	FeeMemberId string `json:"feeMemberId,omitempty"`
+	// 账本类型 BALANCE-余额户 TRANSIT-在途户
+	AccountType string `json:"accountType"`
+	// 加值总金额,单位：元
+	DealAmount float64 `json:"dealAmount"`
+	// 账户加值list 一次最多支持传10个账户
+	AcctInfo []*AccRechargeInfo `json:"acctInfo"`
+}
+
+// CalcDealAmount 根据 AcctInfo 计算加值总金额
+func (r *AccRechargeReq) CalcDealAmount() {
+	if r.AcctInfo == nil || len(r.AcctInfo) == 0 {
+		return
+	}
+
+	total := decimal.Zero
+	for _, info := range r.AcctInfo {
+		if info.TransAmount != "" {
+			if amount, err := decimal.NewFromString(info.TransAmount); err == nil {
+				total = total.Add(amount)
+			}
+		}
+	}
+	r.DealAmount, _ = total.Float64()
+}
+
+// 账户加值响应数据
+type AccRechargeResp struct {
+	AccBaseResp
+	// 原请求流水号
+	TransSerialNo string `json:"transSerialNo"`
+	// 原请求日期 时间 yyyyMMddHHmmss
+	ReqTime string `json:"reqTime,omitempty"`
+	// 原商户交易订单号
+	OrderNo string `json:"orderNo"`
+	// 订单状态 0失败 1成功 2处理中
+	State int `json:"state"`
+	// 失败原因,业务状态为失败时返回
+	TransRemark string `json:"transRemark,omitempty"`
+	// 加值成功时间 时间 yyyyMMddHHmmss
+	SuccessTime string `json:"successTime,omitempty"`
+	// 加值总金额,单位：元
+	DealAmount string `json:"dealAmount"`
+	// 账本类型 BALANCE-余额户 TRANSIT-在途户
+	AccountType string `json:"accountType"`
+	// 手续费金额,单位：元
+	TransFee string `json:"transFee,omitempty"`
+	// 手续费承担方
+	FeeMemberId string `json:"feeMemberId,omitempty"`
+}
+
+// IsSuccess 判断账户加值是否成功
+func (r *AccRechargeResp) IsSuccess() bool {
+	return r.State == RECHARGE_STATE_SUCCESS
+}
+
+// IsProcessing 判断账户加值是否处理中
+func (r *AccRechargeResp) IsProcessing() bool {
+	return r.State == RECHARGE_STATE_PROCESSING
+}
+
+// 账户减值明细信息
+type AccDevalueInfo struct {
+	// 二级客户号
+	ContractNo string `json:"contractNo"`
+	// 减值金额,单位：元
+	TransAmount string `json:"transAmount"`
+	// 附言
+	Remark string `json:"remark,omitempty"`
+}
+
+// 账户减值请求参数
+type AccDevalueReq struct {
+	// 版本号 1.0.0
+	Version string `json:"version"`
+	// 请求流水号
+	TransSerialNo string `json:"transSerialNo"`
+	// 请求日期 时间 yyyyMMddHHmmss
+	ReqTime string `json:"reqTime,omitempty"`
+	// 平台商户号
+	PlatformNo string `json:"platformNo"`
+	// 商户订单号需要唯一
+	TransOrderNo string `json:"transOrderNo"`
+	// 商户交易订单号
+	OrderNo string `json:"orderNo"`
+	// 手续费承担方
+	FeeMemberId string `json:"feeMemberId,omitempty"`
+	// 账本类型 BALANCE-余额户 TRANSIT-在途户
+	AccountType string `json:"accountType"`
+	// 减值总金额,单位：元
+	DealAmount float64 `json:"dealAmount"`
+	// 账户减值list 一次最多支持传10个账户
+	AcctInfo []*AccDevalueInfo `json:"acctInfo"`
+}
+
+// CalcDealAmount 根据 AcctInfo 计算减值总金额
+func (r *AccDevalueReq) CalcDealAmount() {
+	if len(r.AcctInfo) == 0 {
+		return
+	}
+
+	total := decimal.Zero
+	for _, info := range r.AcctInfo {
+		if info.TransAmount != "" {
+			if amount, err := decimal.NewFromString(info.TransAmount); err == nil {
+				total = total.Add(amount)
+			}
+		}
+	}
+	r.DealAmount, _ = total.Float64()
+}
+
+// 账户减值响应数据
+type AccDevalueResp struct {
+	AccBaseResp
+	// 原请求流水号
+	TransSerialNo string `json:"transSerialNo"`
+	// 原请求日期 时间 yyyyMMddHHmmss
+	ReqTime string `json:"reqTime,omitempty"`
+	// 原商户交易订单号
+	OrderNo string `json:"orderNo"`
+	// 订单受理结果 返回码 1 成功 0 失败
+	RetCode int `json:"retCode"`
+	// 业务返回码
+	ErrorCode string `json:"errorCode,omitempty"`
+	// 业务返回描述
+	ErrorMsg string `json:"errorMsg,omitempty"`
+	// 业务状态 0失败 1成功 2处理中
+	State int `json:"state"`
+	// 失败原因,业务状态为失败时返回
+	TransRemark string `json:"transRemark,omitempty"`
+	// 减值成功时间 时间 yyyyMMddHHmmss
+	SuccessTime string `json:"successTime,omitempty"`
+	// 减值总金额,单位：元
+	DealAmount string `json:"dealAmount"`
+	// 账本类型 BALANCE-余额户 TRANSIT-在途户
+	AccountType string `json:"accountType"`
+	// 手续费金额,单位：元
+	TransFee string `json:"transFee,omitempty"`
+	// 手续费承担方
+	FeeMemberId string `json:"feeMemberId,omitempty"`
+}
+
+// IsSuccess 判断账户减值是否成功
+func (r *AccDevalueResp) IsSuccess() bool {
+	return r.State == DEVALUE_STATE_SUCCESS
+}
+
+// IsProcessing 判断账户减值是否处理中
+func (r *AccDevalueResp) IsProcessing() bool {
+	return r.State == DEVALUE_STATE_PROCESSING
+}
+
+// 账户加减值查询请求参数
+type AccRechargeDevalueQueryReq struct {
+	// 版本号 1.0.0
+	Version string `json:"version"`
+	// 请求流水号
+	TransSerialNo string `json:"transSerialNo"`
+	// 请求日期 时间 yyyyMMddHHmmss
+	ReqTime string `json:"reqTime,omitempty"`
+	// 平台商户号
+	PlatformNo string `json:"platformNo"`
+	// 原商户订单号
+	TransOrderNo string `json:"transOrderNo"`
+	// 业务类型 01:加值；02:减值；03：在途户结算余额户
+	OrderType string `json:"orderType"`
+}
+
+// 账户加减值查询响应数据
+type AccRechargeDevalueQueryResp struct {
+	AccBaseResp
+	// 原请求流水号
+	TransSerialNo string `json:"transSerialNo"`
+	// 原请求日期 时间 yyyyMMddHHmmss
+	ReqTime string `json:"reqTime,omitempty"`
+	// 原商户订单号
+	TransOrderNo string `json:"transOrderNo"`
+	// 订单受理结果 返回码 1 成功 0 失败
+	RetCode int `json:"retCode"`
+	// 业务返回码
+	ErrorCode string `json:"errorCode,omitempty"`
+	// 业务返回描述
+	ErrorMsg string `json:"errorMsg,omitempty"`
+	// 业务状态 0失败 1成功 2处理中
+	State int `json:"state"`
+	// 失败原因,业务状态为失败时返回
+	TransRemark string `json:"transRemark,omitempty"`
+	// 业务类型 01:加值；02:减值
+	OrderType string `json:"orderType"`
+	// 记账完成时间 时间 yyyyMMddHHmmss
+	FinishTime string `json:"finishTime,omitempty"`
+	// 成功金额,单位：元
+	DealAmount string `json:"dealAmount"`
+	// 手续费金额,单位：元
+	TransFee string `json:"transFee,omitempty"`
+	// 手续费承担方
+	FeeMemberId string `json:"feeMemberId,omitempty"`
+	// 账本类型 BALANCE-余额户 TRANSIT-在途户
+	AccountType string `json:"accountType,omitempty"`
+}
+
+// IsSuccess 判断账户加减值查询是否成功
+func (r *AccRechargeDevalueQueryResp) IsSuccess() bool {
+	return r.State == RECHARGE_STATE_SUCCESS
+}
+
+// IsProcessing 判断账户加减值查询是否处理中
+func (r *AccRechargeDevalueQueryResp) IsProcessing() bool {
+	return r.State == RECHARGE_STATE_PROCESSING
+}
+
+// 转账（取现）请求参数
+type AccWithdrawReq struct {
+	// 版本号 1.0.0
+	Version string `json:"version"`
+	// 客户账户号
+	ContractNo string `json:"contractNo"`
+	// 上级客户账户号
+	DirectPlatformNo string `json:"directPlatformNo,omitempty"`
+	// 商户流水号
+	TransSerialNo string `json:"transSerialNo"`
+	// 提现金额,单位：元
+	DealAmount float64 `json:"dealAmount"`
+	// 提现结果异步通知地址
+	ReturnUrl string `json:"returnUrl"`
+	// 手续费承担方，与客户号contractNo一致
+	FeeMemberId string `json:"feeMemberId,omitempty"`
+	// 原样返回保留字段
+	ReqReserved string `json:"reqReserved,omitempty"`
+	// 摘要
+	TransAbstract string `json:"transAbstract,omitempty"`
+}
+
+// 转账（取现）响应数据
+type AccWithdrawResp struct {
+	AccBaseResp
+	// 请求流水号
+	TransSerialNo string `json:"transSerialNo"`
+	// 客户账户号
+	ContractNo string `json:"contractNo"`
+	// 订单状态 1受理成功 2受理失败
+	State int `json:"state"`
+	// 订单备注（受理失败的具体原因）
+	TransRemark string `json:"transRemark,omitempty"`
+}
+
+// IsSuccess 判断取现是否受理成功
+func (r *AccWithdrawResp) IsSuccess() bool {
+	return r.State == WITHDRAW_STATE_SUCCESS
+}
+
+// IsFailure 判断取现是否受理失败
+func (r *AccWithdrawResp) IsFailure() bool {
+	return r.State == WITHDRAW_STATE_FAILURE
+}
+
+// 转账结果查询（取现）请求参数
+type AccWithdrawQueryReq struct {
+	// 版本号 1.0.0
+	Version string `json:"version"`
+	// 原商户流水号
+	TransSerialNo string `json:"transSerialNo"`
+	// 交易时间 yyyy-MM-dd，原交易日期
+	TradeTime string `json:"tradeTime"`
+}
+
+// 转账结果查询（取现）响应数据
+type AccWithdrawQueryResp struct {
+	AccBaseResp
+	// 商户号
+	MemberId string `json:"memberId"`
+	// 原商户流水号
+	TransSerialNo string `json:"transSerialNo"`
+	// 订单状态 0失败 1成功 2处理中 3提现退回
+	State int `json:"state"`
+	// 订单号
+	OrderId int64 `json:"orderId,omitempty"`
+	// 成功时间，格式：yyyy-MM-dd HH:mm:ss
+	SuccessTime string `json:"successTime,omitempty"`
+	// 商户客户号
+	ContractNo string `json:"contractNo"`
+	// 转账金额,单位：元
+	TransMoney float64 `json:"transMoney"`
+	// 转账手续费,单位：元
+	TransFee float64 `json:"transFee"`
+	// 转账交易时金额,单位：元
+	TransferTotalAmount float64 `json:"transferTotalAmount"`
+	// 失败原因
+	TransRemark string `json:"transRemark,omitempty"`
+}
+
+// IsSuccess 判断取现查询是否成功
+func (r *AccWithdrawQueryResp) IsSuccess() bool {
+	return r.State == WITHDRAW_QUERY_STATE_SUCCESS
+}
+
+// IsProcessing 判断取现查询是否处理中
+func (r *AccWithdrawQueryResp) IsProcessing() bool {
+	return r.State == WITHDRAW_QUERY_STATE_PROCESSING
+}
+
+// IsRefunded 判断取现是否退回
+func (r *AccWithdrawQueryResp) IsRefunded() bool {
+	return r.State == WITHDRAW_QUERY_STATE_REFUNDED
+}
+
+// 账户余额查询请求参数
+type AccBalanceQueryReq struct {
+	// 版本号 1.0.0
+	Version string `json:"version"`
+	// 客户号
+	ContractNo string `json:"contractNo"`
+	// 账户类型:1个人,2商户,4平台商户
+	AccType int `json:"accType"`
+}
+
+// 账户余额查询响应数据
+type AccBalanceQueryResp struct {
+	AccBaseResp
+	// 账簿可用余额,单位：元;可用于提现
+	AvailableBal float64 `json:"availableBal"`
+	// 在途资金余额,单位：元
+	PendingBal float64 `json:"pendingBal"`
+	// 账簿余额,单位：元;账簿余额=可用余额+在途余额+冻结金额
+	CurrBal float64 `json:"currBal"`
 }
