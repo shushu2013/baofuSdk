@@ -309,6 +309,133 @@ func DecryptByPrivateKey(encryptedData string, privateKey *rsa.PrivateKey) (stri
 	return string(decryptedData), nil
 }
 
+// RsaEncryptByPrivateKey 使用私钥进行 RSA 加密，分段处理
+// src: 源数据字符串
+// privateKey: RSA 私钥对象
+// 返回处理后的十六进制字符串或错误
+func RsaEncryptByPrivateKey(src string, privateKey *rsa.PrivateKey) (string, error) {
+	srcData := []byte(src)
+	// RSA 密钥长度 (如 2048bit = 256 byte)
+	keySize := privateKey.N.BitLen() / 8
+	// PKCS1v15填充长度为11字节，分段明文必须小于 keySize - 11
+	maxBlockSize := keySize - 11
+
+	result := make([]byte, 0, len(srcData))
+	for len(srcData) > 0 {
+		var chunk []byte
+		if len(srcData) > maxBlockSize {
+			chunk = srcData[:maxBlockSize]
+			srcData = srcData[maxBlockSize:]
+		} else {
+			chunk = srcData
+			srcData = nil
+		}
+
+		// 使用私钥加密 (私钥加密需注意标准，这里为了兼容使用SignPKCS1v15作为替代方案)
+		// 实际上，RSA私钥加密等同于签名，但如果专门指"加密"，通常指SignPKCS1v15
+		// 注意: 使用 rsa.EncryptPKCS1v15 传入私钥是不对的，需正确区分加签和加密
+
+		encryptedChunk, err := rsa.SignPKCS1v15(rand.Reader, privateKey, 0, chunk) // 这里的0表示未指定哈希
+		if err != nil {
+			return "", err
+		}
+		result = append(result, encryptedChunk...)
+	}
+
+	return byte2Hex(result), nil
+}
+
+// 用公钥解密数据（支持分段解密）
+func DecryptByPublicKey(encryptedData string, publicKey *rsa.PublicKey) (string, error) {
+	// 将加密数据转换为字节数组
+	ciphertext, err := hex2Bytes(encryptedData)
+	if err != nil {
+		return "", fmt.Errorf("加密数据格式错误: %v", err)
+	}
+
+	keySize := publicKey.N.BitLen() / 8
+	var decryptedBytes []byte
+
+	// 分段解密，每段长度为keySize
+	for i := 0; i < len(ciphertext); i += keySize {
+		end := i + keySize
+		if end > len(ciphertext) {
+			end = len(ciphertext)
+		}
+
+		// 解密当前段
+		decryptedBlock, err := rsaDecryptWithPublicKey(ciphertext[i:end], publicKey)
+		if err != nil {
+			return "", fmt.Errorf("解密数据块失败 (offset=%d): %v", i, err)
+		}
+
+		decryptedBytes = append(decryptedBytes, decryptedBlock...)
+	}
+
+	return string(decryptedBytes), nil
+}
+
+// rsaDecryptWithPublicKey 使用公钥解密的内部实现
+func rsaDecryptWithPublicKey(ciphertext []byte, publicKey *rsa.PublicKey) ([]byte, error) {
+	// 将密文转换为大数
+	c := new(big.Int).SetBytes(ciphertext)
+
+	// RSA解密：m = c^e mod n
+	m := new(big.Int).Exp(c, big.NewInt(int64(publicKey.E)), publicKey.N)
+
+	// 转换为字节数组，需要补齐到密钥长度
+	keySize := publicKey.N.BitLen() / 8
+	plaintext := m.Bytes()
+
+	// 如果结果长度小于密钥长度，需要在前面补0
+	if len(plaintext) < keySize {
+		padded := make([]byte, keySize)
+		copy(padded[keySize-len(plaintext):], plaintext)
+		plaintext = padded
+	}
+
+	// PKCS#1 v1.5 有两种格式：
+	// Type 1 (签名): 0x00 0x01 [0xFF填充] 0x00 [数据]
+	// Type 2 (加密): 0x00 0x02 [随机非零字节] 0x00 [数据]
+
+	if len(plaintext) < 11 {
+		return nil, fmt.Errorf("无效的PKCS#1 v1.5 padding: 长度=%d", len(plaintext))
+	}
+
+	if plaintext[0] != 0x00 {
+		return nil, fmt.Errorf("无效的PKCS#1 v1.5 padding: 首字节=0x%02x (预期0x00)", plaintext[0])
+	}
+
+	var dataStart int
+
+	if plaintext[1] == 0x01 {
+		// Type 1: 签名格式 - 查找 0x00 分隔符（前面是 0xFF 填充）
+		i := 2
+		for i < len(plaintext) && plaintext[i] == 0xFF {
+			i++
+		}
+		if i >= len(plaintext) || plaintext[i] != 0x00 {
+			return nil, fmt.Errorf("无效的PKCS#1 v1.5 Type 1 padding: 未找到分隔符")
+		}
+		dataStart = i + 1
+	} else if plaintext[1] == 0x02 {
+		// Type 2: 加密格式 - 查找 0x00 分隔符（前面是随机非零字节）
+		i := 2
+		for i < len(plaintext) && plaintext[i] != 0x00 {
+			i++
+		}
+		if i >= len(plaintext) {
+			return nil, fmt.Errorf("无效的PKCS#1 v1.5 Type 2 padding: 未找到分隔符")
+		}
+		dataStart = i + 1
+	} else {
+		return nil, fmt.Errorf("无效的PKCS#1 v1.5 padding: 次字节=0x%02x (预期0x01或0x02)", plaintext[1])
+	}
+
+	// 返回实际数据
+	return plaintext[dataStart:], nil
+}
+
 // aes加密-128位
 func AesEncrypt(data, key string) (string, error) {
 	// 检查密钥长度，AES-128需要16字节密钥
