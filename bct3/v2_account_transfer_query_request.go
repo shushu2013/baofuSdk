@@ -4,8 +4,6 @@ import (
 	"time"
 
 	"github.com/shushu2013/baofuSdk/tool"
-
-	"github.com/pkg/errors"
 )
 
 // 转账结果查询（账户间）接口
@@ -51,11 +49,6 @@ func AccountTransferQueryRequest(config *BCT3Config, req *AccTransferQueryReq) (
 	resp := &AccTransferQueryResp{}
 	if err = tool.ParseJSON(response.Body, resp); err != nil {
 		return nil, err
-	}
-
-	// 判断查询状态
-	if resp.State == TRANSFER_QUERY_STATE_FAILURE {
-		return nil, errors.Errorf("转账查询失败:%s", resp.TransRemark)
 	}
 
 	return resp, nil

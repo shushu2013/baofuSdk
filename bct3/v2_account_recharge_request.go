@@ -4,8 +4,6 @@ import (
 	"time"
 
 	"github.com/shushu2013/baofuSdk/tool"
-
-	"github.com/pkg/errors"
 )
 
 // 账户加值（分账加值）接口
@@ -57,11 +55,6 @@ func AccountRechargeRequest(config *BCT3Config, req *AccRechargeReq) (*AccRechar
 	resp := &AccRechargeResp{}
 	if err = tool.ParseJSON(response.Body, resp); err != nil {
 		return nil, err
-	}
-
-	// 判断加值状态
-	if resp.State == RECHARGE_STATE_FAILURE {
-		return nil, errors.Errorf("账户加值失败:%s", resp.TransRemark)
 	}
 
 	return resp, nil

@@ -4,8 +4,6 @@ import (
 	"time"
 
 	"github.com/shushu2013/baofuSdk/tool"
-
-	"github.com/pkg/errors"
 )
 
 // 转账（账户间）接口
@@ -51,11 +49,6 @@ func AccountTransferRequest(config *BCT3Config, req *AccTransferReq) (*AccTransf
 	resp := &AccTransferResp{}
 	if err = tool.ParseJSON(response.Body, resp); err != nil {
 		return nil, err
-	}
-
-	// 判断转账状态
-	if resp.State == TRANSFER_STATE_FAILURE {
-		return nil, errors.Errorf("转账失败:%s", resp.TransRemark)
 	}
 
 	return resp, nil

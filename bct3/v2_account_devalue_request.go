@@ -4,8 +4,6 @@ import (
 	"time"
 
 	"github.com/shushu2013/baofuSdk/tool"
-
-	"github.com/pkg/errors"
 )
 
 // 账户减值（分账减值）接口
@@ -57,11 +55,6 @@ func AccountDevalueRequest(config *BCT3Config, req *AccDevalueReq) (*AccDevalueR
 	resp := &AccDevalueResp{}
 	if err = tool.ParseJSON(response.Body, resp); err != nil {
 		return nil, err
-	}
-
-	// 判断减值状态
-	if resp.State == DEVALUE_STATE_FAILURE {
-		return nil, errors.Errorf("账户减值失败:%s", resp.TransRemark)
 	}
 
 	return resp, nil

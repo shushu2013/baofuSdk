@@ -4,8 +4,6 @@ import (
 	"time"
 
 	"github.com/shushu2013/baofuSdk/tool"
-
-	"github.com/pkg/errors"
 )
 
 // 转账结果查询（取现）接口
@@ -51,11 +49,6 @@ func AccountWithdrawQueryRequest(config *BCT3Config, req *AccWithdrawQueryReq) (
 	resp := &AccWithdrawQueryResp{}
 	if err = tool.ParseJSON(response.Body, resp); err != nil {
 		return nil, err
-	}
-
-	// 判断查询状态
-	if resp.State == WITHDRAW_QUERY_STATE_FAILURE {
-		return nil, errors.Errorf("取现查询失败:%s", resp.TransRemark)
 	}
 
 	return resp, nil

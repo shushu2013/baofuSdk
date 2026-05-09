@@ -4,8 +4,6 @@ import (
 	"time"
 
 	"github.com/shushu2013/baofuSdk/tool"
-
-	"github.com/pkg/errors"
 )
 
 // 账户加减值查询接口
@@ -54,11 +52,6 @@ func AccountRechargeDevalueQueryRequest(config *BCT3Config, req *AccRechargeDeva
 	resp := &AccRechargeDevalueQueryResp{}
 	if err = tool.ParseJSON(response.Body, resp); err != nil {
 		return nil, err
-	}
-
-	// 判断查询状态
-	if resp.State == RECHARGE_STATE_FAILURE {
-		return nil, errors.Errorf("账户加减值查询失败:%s", resp.TransRemark)
 	}
 
 	return resp, nil
