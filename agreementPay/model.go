@@ -124,3 +124,84 @@ type AgreementUnBindBankCardRequest struct {
 	// 签约协议号
 	ProtocolNo string `json:"protocol_no"`
 }
+
+// 协议支付-预支付类交易
+// https://docs.baofu.com/docs/interface_document/protocolPay-rsa
+type AgreementPrePayRequest struct {
+	// 报文流水号，每次请求均不可重复
+	MsgId string `json:"msg_id"`
+	// 商户订单号，唯一订单号，8-50 位字母和数字,未支付成功的订单号可重复提交，重复提交时交易参数不得发生变化
+	TransId string `json:"trans_id"`
+	// 用户ID，用户在商户平台唯一ID
+	UserId string `json:"user_id"`
+	// 签约协议号
+	ProtocolNo string `json:"protocol_no"`
+	// 交易金额，单位：分
+	TxnAmt string `json:"txn_amt"`
+	// 风控参数
+	RiskItem string `json:"risk_item"`
+	// 交易成功通知地址
+	ReturnUrl string `json:"return_url"`
+	// 商户保留域1
+	ReqReserved1 string `json:"req_reserved1"`
+	// 商户保留域2
+	ReqReserved2 string `json:"req_reserved2"`
+	// 系统保留域1
+	AdditionalInfo1 string `json:"additional_info1"`
+	// 系统保留域2
+	AdditionalInfo2 string `json:"additional_info2"`
+	// 手续费承担方商户号
+	FeeMemberId string `json:"fee_member_id"`
+	// 计费商户号
+	CallFeeMemberId string `json:"call_fee_member_id"`
+	// 平台商户号
+	PlatformNo string `json:"platform_no"`
+	// 上级平台编号
+	SubMerchantNo string `json:"sub_merchant_no"`
+	// 平台交易类型
+	PaymentType string `json:"payment_type"`
+}
+
+// 协议支付-确认支付类交易
+// https://docs.baofu.com/docs/interface_document/protocolPay-rsa
+type AgreementConfirmPayRequest struct {
+	// 报文流水号，每次请求均不可重复
+	MsgId string `json:"msg_id"`
+	// 预支付唯一码
+	UniqueCode string `json:"unique_code"`
+	// 短信验证码
+	SmsCode string `json:"sms_code"`
+	// 卡信息，当使用信用卡支付时，需上传。格式：信用卡有效期（yymm）|安全码
+	CardInfo string `json:"card_info"`
+	// 商户保留域1
+	ReqReserved1 string `json:"req_reserved1"`
+	// 商户保留域2
+	ReqReserved2 string `json:"req_reserved2"`
+	// 系统保留域1
+	AdditionalInfo1 string `json:"additional_info1"`
+	// 系统保留域2
+	AdditionalInfo2 string `json:"additional_info2"`
+}
+
+// 协议支付-订单查询类交易
+// https://docs.baofu.com/docs/interface_document/protocolPay-rsa
+type AgreementQueryOrderRequest struct {
+	// 报文流水号，每次请求均不可重复
+	MsgId string `json:"msg_id"`
+	// 商户原始订单号，商户提交的标识支付的唯一原订单号
+	OrigTransId string `json:"orig_trans_id"`
+	// 交易日期，格式：yyyy-MM-dd HH:mm:ss
+	OrigTradeDate string `json:"orig_trade_date"`
+	// 商户保留域1
+	ReqReserved1 string `json:"req_reserved1"`
+	// 商户保留域2
+	ReqReserved2 string `json:"req_reserved2"`
+	// 系统保留域1
+	AdditionalInfo1 string `json:"additional_info1"`
+	// 系统保留域2
+	AdditionalInfo2 string `json:"additional_info2"`
+	// 代理商户号
+	AgentMemberId string `json:"agent_member_id"`
+	// 代理商终端号
+	AgentTerminalId string `json:"agent_terminal_id"`
+}
